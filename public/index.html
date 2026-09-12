@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POS Config & Parámetros - MySQL Monitor & Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Header Bar -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="header-brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+            <line x1="6" y1="18" x2="6.01" y2="18"></line>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-title">
+            <h1>POS Config & Parámetros</h1>
+            <span class="version-badge">pos_contifico</span>
+          </div>
+          <p class="brand-subtitle">Gestión y visualización de <code>pos_configuracion</code> y <code>parametro</code></p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs: Tables Switcher -->
+      <nav class="table-nav-tabs">
+        <button id="navTabPosConfig" class="nav-tab active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+          </svg>
+          <span>pos_configuracion</span>
+          <span class="nav-tab-badge" id="badgeCountConfig">30</span>
+        </button>
+        <button id="navTabParametro" class="nav-tab">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>parametro</span>
+          <span class="nav-tab-badge" id="badgeCountParam">275</span>
+        </button>
+      </nav>
+
+      <div class="header-actions">
+        <div id="dbStatusPill" class="status-pill status-loading">
+          <span class="status-dot"></span>
+          <span class="status-text">Conectando...</span>
+        </div>
+        <button id="btnRefresh" class="btn btn-secondary" title="Recargar datos">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+          <span>Actualizar</span>
+        </button>
+        <button id="btnExportJson" class="btn btn-primary" title="Exportar JSON">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Exportar JSON</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <!-- Server & DB Overview Bar - Compact -->
+    <section class="overview-banner">
+      <div class="db-meta-item">
+        <span class="meta-label">Servidor:</span>
+        <span class="meta-value" id="metaHost">localhost:3306</span>
+      </div>
+      <div class="meta-divider"></div>
+      <div class="db-meta-item">
+        <span class="meta-label">BD:</span>
+        <span class="meta-value" id="metaDb">pos_contifico</span>
+      </div>
+      <div class="meta-divider"></div>
+      <div class="db-meta-item">
+        <span class="meta-label">Motor:</span>
+        <span class="meta-value" id="metaVersion">Detectando...</span>
+      </div>
+      <div class="meta-divider"></div>
+      <div class="db-meta-item">
+        <span class="meta-label">Latencia:</span>
+        <span class="meta-value" id="metaLatency">-- ms</span>
+      </div>
+      <div class="meta-divider"></div>
+      <div class="db-meta-item">
+        <span class="meta-label">Total Tablas BD:</span>
+        <span class="meta-value" id="metaTables">77</span>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- SECCIÓN 1: pos_configuracion               -->
+    <!-- ========================================== -->
+    <div id="sectionPosConfig">
+      <!-- Top KPI Dashboard Cards -->
+      <section class="kpi-grid">
+        <div class="kpi-card" id="kpiTerminal">
+          <div class="kpi-icon icon-cyan">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-title">Terminal Asociado</span>
+            <div class="kpi-main-val" id="valTerminalName">Cargando...</div>
+            <span class="kpi-sub-val" id="valTerminalSub">Terminal ID: --</span>
+          </div>
+        </div>
+
+        <div class="kpi-card" id="kpiSecuencia">
+          <div class="kpi-icon icon-emerald">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-title">Secuencia Documento</span>
+            <div class="kpi-main-val font-mono" id="valSecuenciaDoc">--</div>
+            <span class="kpi-sub-val" id="valSecuenciaRango">Sec. Actual: --</span>
+          </div>
+        </div>
+
+        <div class="kpi-card" id="kpiAutorizacion">
+          <div class="kpi-icon icon-amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-title">Autorización SRI</span>
+            <div class="kpi-main-val font-mono" id="valAutorizacion">--</div>
+            <span class="kpi-sub-val" id="valVencimiento">Vigencia: --</span>
+          </div>
+        </div>
+
+        <div class="kpi-card" id="kpiIva">
+          <div class="kpi-icon icon-purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="19" y1="5" x2="5" y2="19"></line>
+              <circle cx="6.5" cy="6.5" r="2.5"></circle>
+              <circle cx="17.5" cy="17.5" r="2.5"></circle>
+            </svg>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-title">Tarifa IVA Vigente</span>
+            <div class="kpi-main-val font-mono" id="valIva">--%</div>
+            <span class="kpi-sub-val" id="valPuntoEmision">Establecimiento: --</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Toolbar: Search, Filters, View Modes -->
+      <section class="toolbar-section">
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="searchInput" placeholder="Buscar parámetro en pos_configuracion...">
+          <button id="btnClearSearch" class="btn-clear" title="Limpiar búsqueda" style="display:none;">&times;</button>
+        </div>
+
+        <div class="filter-group">
+          <label for="categoryFilter">Categoría:</label>
+          <select id="categoryFilter">
+            <option value="all">Todas las Categorías (30 parámetros)</option>
+            <option value="secuencias">Secuencias y Facturación</option>
+            <option value="autorizaciones">Autorizaciones SRI</option>
+            <option value="flags">Flags / Opciones de Comportamiento</option>
+            <option value="impuestos">Impuestos y Tarifas</option>
+            <option value="guias_notas">Guías de Remisión y Notas de Crédito</option>
+          </select>
+        </div>
+
+        <div class="view-switchers">
+          <button id="btnViewCards" class="btn-view active" title="Vista Agrupada por Categoría">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            <span>Tarjetas</span>
+          </button>
+          <button id="btnViewTable" class="btn-view" title="Vista Tabla Completa">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+            <span>Tabla</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Records Selector (if multiple configs exist) -->
+      <div id="recordSelectorContainer" class="record-selector-bar" style="display:none;">
+        <span class="selector-label">Registro activo de pos_configuracion:</span>
+        <div id="recordTabs" class="record-tabs"></div>
+      </div>
+
+      <!-- Parameter Content Section -->
+      <section class="content-section">
+        <!-- Cards View (Grouped) -->
+        <div id="cardsView" class="cards-view-container"></div>
+
+        <!-- Table View -->
+        <div id="tableView" class="table-view-container" style="display:none;">
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 40px;">#</th>
+                  <th style="width: 220px;">Nombre del Campo</th>
+                  <th style="width: 120px;">Tipo SQL</th>
+                  <th>Valor Actual en BD</th>
+                  <th style="width: 80px;">Null</th>
+                  <th style="width: 80px;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="paramsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- SECCIÓN 2: parametro                       -->
+    <!-- ========================================== -->
+    <div id="sectionParametro" style="display:none;">
+      <!-- Top KPI Dashboard Cards for Parametro -->
+      <section class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon icon-cyan">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-title">Total Parámetros</span>
+            <div class="kpi-main-val font-mono" id="valParamTotal">275</div>
+            <span class="kpi-sub-val" id="valParamSub">Tabla: parametro</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-icon icon-emerald">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-title">Switches Activos (1)</span>
+            <div class="kpi-main-val font-mono" id="valParamActivos" style="color: #34d399;">--</div>
+            <span class="kpi-sub-val">Habilitados en el POS</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-icon icon-amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+            </svg>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-title">Switches Inactivos (0)</span>
+            <div class="kpi-main-val font-mono" id="valParamInactivos" style="color: #94a3b8;">--</div>
+            <span class="kpi-sub-val">Deshabilitados en el POS</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-icon icon-purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 7V4h16v3"></path>
+              <line x1="12" y1="4" x2="12" y2="20"></line>
+              <path d="M8 20h8"></path>
+            </svg>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-title">Campos de Texto / Valor</span>
+            <div class="kpi-main-val font-mono" id="valParamTextos">--</div>
+            <span class="kpi-sub-val">Impresora, puertos, etc.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Toolbar: Parametro Search & Filters -->
+      <section class="toolbar-section">
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="paramSearchInput" placeholder="Buscar parámetro por nombre o valor...">
+          <button id="btnParamClearSearch" class="btn-clear" title="Limpiar búsqueda" style="display:none;">&times;</button>
+        </div>
+
+        <div class="filter-group">
+          <label for="paramSortFilter">Ordenar por:</label>
+          <select id="paramSortFilter">
+            <option value="nombre_asc">Nombre (A → Z)</option>
+            <option value="nombre_desc">Nombre (Z → A)</option>
+            <option value="id_asc">ID (Menor a Mayor)</option>
+            <option value="id_desc">ID (Mayor a Menor)</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label for="paramTypeFilter">Filtrar:</label>
+          <select id="paramTypeFilter">
+            <option value="all">Todos los Parámetros (275)</option>
+            <option value="booleano">Solo Booleanos (Switches)</option>
+            <option value="texto">Solo Texto / Valores Editables</option>
+            <option value="modificados">Solo Cambios Pendientes</option>
+          </select>
+        </div>
+
+        <div class="view-switchers">
+          <button id="btnParamViewCards" class="btn-view active" title="Vista Tarjetas">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            <span>Tarjetas</span>
+          </button>
+          <button id="btnParamViewTable" class="btn-view" title="Vista Tabla">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+            <span>Tabla</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Content Section for Parametro -->
+      <section class="content-section">
+        <!-- Cards View -->
+        <div id="paramCardsView" class="cards-view-container"></div>
+
+        <!-- Table View -->
+        <div id="paramTableView" class="table-view-container" style="display:none;">
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 45px;">ID</th>
+                  <th style="width: 240px;">Nombre del Parámetro</th>
+                  <th style="width: 140px;">Grupo</th>
+                  <th>Valor / Control de Estado</th>
+                  <th style="width: 80px;">Versión</th>
+                  <th style="width: 130px; text-align: center;">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="paramTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Common Loading State -->
+    <div id="loadingState" class="state-container" style="display:none;">
+      <div class="spinner"></div>
+      <p id="loadingMessage">Cargando datos desde MySQL...</p>
+    </div>
+
+    <!-- Common Error State -->
+    <div id="errorState" class="state-container state-error" style="display:none;">
+      <div class="error-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+      <h3 id="errorTitle">No se pudo conectar a MySQL</h3>
+      <p id="errorMessage">Verifique que el servicio esté ejecutándose.</p>
+      <button id="btnRetry" class="btn btn-primary">Reintentar Conexión</button>
+    </div>
+  </main>
+
+  <!-- Floating Sticky Bar for Pending Changes in Parametro -->
+  <div id="pendingChangesBar" class="pending-changes-bar" style="display:none;">
+    <div class="pending-info">
+      <div class="pending-badge-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+        </svg>
+      </div>
+      <div>
+        <span class="pending-title" id="pendingChangesCount">0 cambios pendientes</span>
+        <span class="pending-sub">Has modificado el estado de switches en la tabla parametro</span>
+      </div>
+    </div>
+    <div class="pending-actions">
+      <button id="btnDiscardAll" class="btn btn-secondary btn-sm" title="Deshacer modificaciones">Deshacer</button>
+      <button id="btnSaveAll" class="btn btn-primary btn-sm" title="Guardar todos los cambios en MySQL">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+        <span>Guardar en Base de Datos</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- JSON / Parameter Detail Modal -->
+  <div id="detailModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div class="modal-title-area">
+          <h3 id="modalTitle">Detalle del Registro</h3>
+          <span class="modal-subtitle" id="modalSubtitle">Detalles del objeto</span>
+        </div>
+        <button id="btnCloseModal" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-actions-bar">
+          <button id="btnCopyJson" class="btn btn-sm btn-secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span>Copiar al Portapapeles</span>
+          </button>
+        </div>
+        <pre><code id="modalJsonContent" class="json-content"></code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

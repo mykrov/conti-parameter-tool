@@ -318,6 +318,96 @@ app.post('/api/parametros/guardar-lote', async (req, res) => {
   }
 });
 
+// ==========================================
+// ENDPOINTS PARA FACTURAS (cabecera + detalle)
+// ==========================================
+
+// Endpoint: Últimas 20 facturas creadas en factura_cabecera con su detalle relacionado
+app.get('/api/facturas', async (req, res) => {
+  try {
+    // 1) Últimas 20 cabeceras ordenadas por fecha de creación (más recientes primero)
+    const [cabeceras] = await pool.query(`
+      SELECT
+        c.idfactura_cabecera,
+        c.secuencia,
+        c.terminal_id,
+        COALESCE(t.nombre_comercial, t.razon_social, CONCAT('Terminal ', c.terminal_id)) AS terminal_nombre,
+        c.idCliente,
+        c.id_vendedor,
+        c.id_tipoDocumento,
+        c.numero_documento,
+        c.documento,
+        c.fecha_emision,
+        c.fecha_creacion,
+        c.descuento,
+        c.descuento_factura,
+        c.descuento_cliente,
+        c.tarifa_iva0,
+        c.tarifa_iva,
+        c.total_ice,
+        c.total_iva,
+        c.servicio,
+        c.propina,
+        c.vuelto,
+        c.total,
+        c.forma_pago,
+        c.tipo_pago,
+        c.estado,
+        c.tipo,
+        c.autorizacion,
+        c.electronico,
+        c.enviado_sri,
+        c.descripcion
+      FROM factura_cabecera c
+      LEFT JOIN pos_terminal t ON c.terminal_id = t.id
+      ORDER BY c.fecha_creacion DESC, c.idfactura_cabecera DESC
+      LIMIT 20
+    `);
+
+    if (cabeceras.length === 0) {
+      return res.json({ success: true, total: 0, data: [] });
+    }
+
+    // 2) Detalle de todas las cabeceras obtenidas en una sola consulta
+    const ids = cabeceras.map(c => c.idfactura_cabecera);
+    const [detalles] = await pool.query(`
+      SELECT
+        d.*,
+        ip.nombre AS producto_nombre
+      FROM factura_detalle d
+      LEFT JOIN inventario_producto ip ON ip.id = d.id_producto
+      WHERE d.idfactura_cabecera IN (?)
+      ORDER BY d.idfactura_cabecera ASC, d.idfactura_detalle ASC
+    `, [ids]);
+
+    // 3) Agrupar detalle por cabecera
+    const detallePorFactura = new Map();
+    for (const detalle of detalles) {
+      if (!detallePorFactura.has(detalle.idfactura_cabecera)) {
+        detallePorFactura.set(detalle.idfactura_cabecera, []);
+      }
+      detallePorFactura.get(detalle.idfactura_cabecera).push(detalle);
+    }
+
+    const data = cabeceras.map(cabecera => {
+      const items = detallePorFactura.get(cabecera.idfactura_cabecera) || [];
+      return {
+        ...cabecera,
+        total_items: items.length,
+        detalles: items
+      };
+    });
+
+    res.json({ success: true, total: data.length, data });
+  } catch (error) {
+    console.error('Error al consultar facturas:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al consultar facturas'
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor POS Config Web iniciado en http://localhost:${PORT}`);
 });

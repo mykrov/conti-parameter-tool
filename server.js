@@ -357,7 +357,12 @@ app.get('/api/facturas', async (req, res) => {
         c.autorizacion,
         c.electronico,
         c.enviado_sri,
-        c.descripcion
+        c.descripcion,
+        c.subio,
+        c.id_integracion,
+        c.imprimio,
+        c.cod_error,
+        c.msg_error
       FROM factura_cabecera c
       LEFT JOIN pos_terminal t ON c.terminal_id = t.id
       ORDER BY c.fecha_creacion DESC, c.idfactura_cabecera DESC
@@ -380,7 +385,15 @@ app.get('/api/facturas', async (req, res) => {
       ORDER BY d.idfactura_cabecera ASC, d.idfactura_detalle ASC
     `, [ids]);
 
-    // 3) Agrupar detalle por cabecera
+    // 3) Pagos de todas las cabeceras (tabla real: forma_pagos, FK id_cabecera)
+    const [pagos] = await pool.query(`
+      SELECT p.*
+      FROM forma_pagos p
+      WHERE p.id_cabecera IN (?)
+      ORDER BY p.id_cabecera ASC, p.idforma_pagos ASC
+    `, [ids]);
+
+    // 4) Agrupar detalle y pagos por cabecera
     const detallePorFactura = new Map();
     for (const detalle of detalles) {
       if (!detallePorFactura.has(detalle.idfactura_cabecera)) {
@@ -389,12 +402,23 @@ app.get('/api/facturas', async (req, res) => {
       detallePorFactura.get(detalle.idfactura_cabecera).push(detalle);
     }
 
+    const pagosPorFactura = new Map();
+    for (const pago of pagos) {
+      if (!pagosPorFactura.has(pago.id_cabecera)) {
+        pagosPorFactura.set(pago.id_cabecera, []);
+      }
+      pagosPorFactura.get(pago.id_cabecera).push(pago);
+    }
+
     const data = cabeceras.map(cabecera => {
       const items = detallePorFactura.get(cabecera.idfactura_cabecera) || [];
+      const pagosFactura = pagosPorFactura.get(cabecera.idfactura_cabecera) || [];
       return {
         ...cabecera,
         total_items: items.length,
-        detalles: items
+        detalles: items,
+        total_pagos: pagosFactura.length,
+        pagos: pagosFactura
       };
     });
 

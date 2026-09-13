@@ -99,7 +99,10 @@ function getFilteredFacturas() {
       factura.terminal_nombre,
       factura.descripcion,
       factura.autorizacion,
-      ...(factura.detalles || []).map(d => `${d.id_producto ?? ''} ${d.producto_nombre ?? ''} ${d.descripcion ?? ''}`)
+      ...(factura.detalles || []).map(d => `${d.id_producto ?? ''} ${d.producto_nombre ?? ''} ${d.descripcion ?? ''}`),
+      ...(factura.pagos || []).map(p => `${p.forma_pago ?? ''} ${p.idforma_pagos ?? ''} ${p.numero_comprobante ?? ''} ${p.banco ?? ''}`),
+      factura.msg_error, factura.cod_error, factura.id_integracion,
+      getTipoLabel(factura.tipo)
     ].join(' ').toLowerCase();
     return haystack.includes(term);
   });
@@ -141,6 +144,73 @@ export function renderFacturasView() {
   applyFacturasExpansion();
 }
 
+// Estado de sincronización a la nube según campos de factura_cabecera:
+// Subido = subio=1 + id_integracion poblado | Error = msg_error/cod_error con texto
+// Guardado = sin id_integracion e imprimio=0 (nunca se intentó sincronizar)
+function getSyncEstado(factura) {
+  const subio = Number(factura.subio || 0) === 1;
+  const integracion = String(factura.id_integracion || '').trim();
+  const msgError = String(factura.msg_error || '').trim();
+  const codError = String(factura.cod_error || '').trim();
+  const imprimio = Number(factura.imprimio || 0) === 1;
+
+  if (subio && integracion !== '') {
+    return {
+      clase: 'sync-subido',
+      texto: 'Subido',
+      tooltip: `Sincronizado en la nube • id_integracion: ${integracion}`,
+      icono: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="16 16 12 12 8 16"></polyline>
+        <line x1="12" y1="12" x2="12" y2="21"></line>
+        <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
+      </svg>`
+    };
+  }
+
+  if (msgError !== '' || codError !== '') {
+    const detalle = [codError !== '' ? `Código ${codError}` : '', msgError].filter(Boolean).join(' • ');
+    return {
+      clase: 'sync-error',
+      texto: 'Error',
+      tooltip: `Error de sincronización: ${detalle}`,
+      icono: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+        <line x1="12" y1="9" x2="12" y2="13"></line>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+      </svg>`
+    };
+  }
+
+  return {
+    clase: 'sync-guardado',
+    texto: 'Guardado',
+    tooltip: imprimio
+      ? 'Solo guardado local • imprimio=1 pero sin sincronizar a la nube'
+      : 'Solo guardado local • aún no se ha intentado sincronizar',
+    icono: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+      <polyline points="17 21 17 13 7 13 7 21"></polyline>
+      <polyline points="7 3 7 8 15 8"></polyline>
+    </svg>`
+  };
+}
+
+// Letra de factura_cabecera.tipo -> significado (id_tipoDocumento equivalente)
+const TIPO_LABELS = {
+  F: 'Factura',
+  N: 'Nota de Venta',
+  D: 'DNA',
+  P: 'Prefactura',
+  C: 'Nota de Crédito'
+};
+
+const TIPO_DOC_IDS = { F: 1, N: 2, D: 3, P: 5, C: 4 };
+
+function getTipoLabel(tipo) {
+  const letra = String(tipo || '').trim().toUpperCase();
+  return TIPO_LABELS[letra] || letra;
+}
+
 function buildFacturaCard(factura) {
   const id = factura.idfactura_cabecera;
   const card = document.createElement('div');
@@ -150,12 +220,18 @@ function buildFacturaCard(factura) {
   const estado = String(factura.estado || '').trim();
   const estadoClase = estado ? `estado-${estado.toLowerCase().charAt(0)}` : 'estado-otro';
   const fecha = formatDateTime(factura.fecha_emision || factura.fecha_creacion);
+  const nPagos = factura.total_pagos ?? (factura.pagos || []).length;
+  const pagoClase = nPagos > 0 ? 'pago-ok' : 'pago-none';
+  const pagoTexto = nPagos > 0 ? `${nPagos} pago${nPagos === 1 ? '' : 's'}` : 'Sin pago';
+
+  // Estado de sincronización a la nube (campos de factura_cabecera)
+  const sync = getSyncEstado(factura);
 
   card.innerHTML = `
     <div class="factura-card-header" onclick="toggleFacturaDetalle(${id})">
       <div class="factura-doc-block">
         <span class="factura-doc">${escapeHtml(factura.documento || `#${id}`)}</span>
-        ${factura.tipo ? `<span class="factura-tipo-badge">${escapeHtml(factura.tipo)}</span>` : ''}
+        ${factura.tipo ? `<span class="factura-tipo-badge" title="Tipo '${escapeHtml(factura.tipo)}' • id_tipoDocumento ${TIPO_DOC_IDS[String(factura.tipo).trim().toUpperCase()] ?? factura.id_tipoDocumento ?? '-'}">${escapeHtml(getTipoLabel(factura.tipo))}</span>` : ''}
         ${estado ? `<span class="factura-estado-badge ${estadoClase}">${escapeHtml(estado)}</span>` : ''}
       </div>
 
@@ -192,6 +268,17 @@ function buildFacturaCard(factura) {
           </svg>
           ${factura.total_items || 0} ítem${(factura.total_items || 0) === 1 ? '' : 's'}
         </span>
+        <span class="factura-meta-item factura-pago-meta ${pagoClase}" title="Registros en forma_pagos (id_cabecera)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+            <line x1="1" y1="10" x2="23" y2="10"></line>
+          </svg>
+          ${escapeHtml(pagoTexto)}
+        </span>
+        <span class="factura-meta-item factura-sync-meta ${sync.clase}" title="${escapeHtml(sync.tooltip)}">
+          ${sync.icono}
+          ${escapeHtml(sync.texto)}
+        </span>
       </div>
 
       <div class="factura-header-total">
@@ -226,9 +313,112 @@ function buildFacturaCard(factura) {
 
 function buildFacturaDetalleHtml(factura) {
   const detalles = factura.detalles || [];
-  if (detalles.length === 0) {
-    return `<div class="factura-detalle-empty">Esta factura no tiene registros relacionados en factura_detalle.</div>`;
+  const pagos = factura.pagos || [];
+
+  const detalleHtml = detalles.length === 0
+    ? `<div class="factura-detalle-empty">Esta factura no tiene registros relacionados en factura_detalle.</div>`
+    : buildDetalleTableHtml(factura, detalles);
+
+  return `${detalleHtml}${buildPagosHtml(factura)}`;
+}
+
+// Columnas de monto en forma_pagos que suman al pago (se excluye
+// monto_recibido_efectivo porque es el efectivo entregado, no un cargo extra).
+const PAGO_MONTO_COLS = [
+  ['monto_efectivo', 'Efectivo'],
+  ['monto_tarjeta', 'Tarjeta'],
+  ['monto_transferencia', 'Transferencia'],
+  ['monto_cheque', 'Cheque'],
+  ['monto_retencion', 'Retención'],
+  ['monto_giftcard', 'Giftcard'],
+  ['monto_nota', 'Nota'],
+  ['monto_domicilioya', 'DomicilioYa'],
+  ['monto_glovo', 'Glovo'],
+  ['monto_super_easy', 'SuperEasy'],
+  ['monto_uber', 'Uber'],
+  ['monto_rappi', 'Rappi'],
+  ['monto_picker', 'Picker'],
+  ['monto_otros_domicilios', 'Otros domicilios'],
+  ['monto_fidelizacion', 'Fidelización'],
+  ['monto_propina', 'Propina']
+];
+
+function pagoRowTotal(pago) {
+  return PAGO_MONTO_COLS.reduce((acc, [col]) => acc + Number(pago[col] || 0), 0);
+}
+
+function buildPagosHtml(factura) {
+  const pagos = factura.pagos || [];
+  const totalPagado = pagos.reduce((acc, p) => acc + pagoRowTotal(p), 0);
+
+  if (pagos.length === 0) {
+    return `
+      <div class="factura-pagos-block">
+        <div class="factura-pagos-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+            <line x1="1" y1="10" x2="23" y2="10"></line>
+          </svg>
+          Pagos registrados (0)
+        </div>
+        <div class="factura-detalle-empty">Sin registros en forma_pagos para este id_cabecera.</div>
+      </div>
+    `;
   }
+
+  const filas = pagos.map((pago) => {
+    const chips = PAGO_MONTO_COLS
+      .filter(([col]) => Number(pago[col] || 0) > 0)
+      .map(([col, label]) => `<span class="pago-chip">${escapeHtml(label)} ${formatMoney(pago[col])}</span>`)
+      .join('');
+    return `
+      <tr>
+        <td class="font-mono" style="color: var(--text-muted);">#${escapeHtml(pago.idforma_pagos ?? '-')}</td>
+        <td><span class="factura-tipo-badge">${escapeHtml(pago.forma_pago || '-')}</span></td>
+        <td><div class="pago-chips">${chips || '<span class="record-value-empty">(montos en cero)</span>'}</div></td>
+        <td class="text-right font-mono" style="font-weight: 700; color: #34d399;">${formatMoney(pagoRowTotal(pago))}</td>
+        <td class="font-mono" style="color: var(--text-secondary);">${escapeHtml(formatDateTime(pago.fecha_creacion))}</td>
+        <td style="text-align: center;">
+          <button class="btn-icon-action" title="Ver registro completo de forma_pagos"
+                  onclick="event.stopPropagation(); inspectPago(${factura.idfactura_cabecera}, ${pago.idforma_pagos})">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  return `
+    <div class="factura-pagos-block">
+      <div class="factura-pagos-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+          <line x1="1" y1="10" x2="23" y2="10"></line>
+        </svg>
+        Pagos registrados (${pagos.length})
+        <span class="factura-pagos-total">Total pagado: ${formatMoney(totalPagado)}</span>
+      </div>
+      <table class="data-table factura-detalle-table">
+        <thead>
+          <tr>
+            <th style="width: 70px;">ID pago</th>
+            <th style="width: 90px;">Forma</th>
+            <th>Montos</th>
+            <th style="width: 110px; text-align: right;">Total</th>
+            <th style="width: 150px;">Fecha</th>
+            <th style="width: 60px; text-align: center;">Cols.</th>
+          </tr>
+        </thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function buildDetalleTableHtml(factura, detalles) {
 
   const filas = detalles.map((detalle, idx) => `
     <tr>
@@ -336,6 +526,21 @@ window.inspectFacturaDetalle = function(facturaId, detalleId) {
   `).join('');
 
   dom.recordModal.style.display = 'flex';
+};
+
+// Abre el modal con TODAS las columnas de forma_pagos para un pago
+window.inspectPago = function(facturaId, pagoId) {
+  const factura = state.facturas.data.find(f => f.idfactura_cabecera === facturaId);
+  if (!factura) return;
+
+  const pago = (factura.pagos || []).find(p => p.idforma_pagos === pagoId);
+  if (!pago) return;
+
+  openJsonModal(
+    `Pago #${pagoId} • Forma ${pago.forma_pago || '-'}`,
+    `Tabla: forma_pagos • id_cabecera ${facturaId} • ${factura.documento || `Factura #${facturaId}`}`,
+    pago
+  );
 };
 
 function closeRecordModal() {

@@ -509,6 +509,14 @@
             <span>Contraer</span>
           </button>
         </div>
+
+        <button id="btnFacturasCompare" class="btn btn-primary" disabled title="Selecciona 2 facturas con el check para comparar su integridad">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+          </svg>
+          <span>Comparar</span>
+          <span class="compare-count" id="compareCount">0/2</span>
+        </button>
       </section>
 
       <!-- Content Section for Facturas -->
@@ -620,6 +628,22 @@
             <tbody id="recordModalBody"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de comparación de integridad entre 2 facturas -->
+  <div id="compareModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-container modal-container-wide">
+      <div class="modal-header">
+        <div class="modal-title-area">
+          <h3 id="compareModalTitle">Comparar facturas</h3>
+          <span class="modal-subtitle" id="compareModalSubtitle">Integridad cabecera + detalle</span>
+        </div>
+        <button id="btnCloseCompareModal" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="compareModalBody" class="compare-body"></div>
       </div>
     </div>
   </div>

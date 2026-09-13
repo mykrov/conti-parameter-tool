@@ -234,6 +234,20 @@ body {
   font-size: 0.75rem;
 }
 
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none;
+}
+
+.compare-count {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 0.05rem 0.4rem;
+  border-radius: var(--radius-full);
+}
+
 /* Main Layout - Compact */
 .app-main {
   max-width: 1440px;
@@ -1571,6 +1585,110 @@ body {
 
 .text-right {
   text-align: right;
+}
+
+/* ========================================================= */
+/* COMPARACIÓN DE INTEGRIDAD ENTRE 2 FACTURAS                */
+/* ========================================================= */
+.factura-check {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-cyan);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.factura-card.is-compare-selected {
+  border-color: rgba(56, 189, 248, 0.6);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.4), var(--shadow-sm);
+}
+
+.compare-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.compare-verdict {
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
+.compare-verdict.compare-ok {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
+}
+
+.compare-verdict.compare-diff {
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.4);
+  color: #fb7185;
+}
+
+.compare-section-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 0.3rem;
+}
+
+.compare-table td {
+  word-break: break-word;
+}
+
+.compare-table .row-diff td {
+  background: rgba(244, 63, 94, 0.06);
+}
+
+.compare-table .row-ok td {
+  color: var(--text-secondary);
+}
+
+.compare-delta {
+  color: #fb7185;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.compare-empty-ok {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+}
+
+.compare-unpaired {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+}
+
+.compare-pair-title {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-cyan);
+}
+
+.compare-details summary {
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  padding: 0.3rem 0;
+}
+
+.compare-details summary:hover {
+  color: var(--accent-cyan);
 }
 
 /* ========================================================= */

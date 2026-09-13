@@ -22,6 +22,7 @@
 | `factura_cabecera` | Cabecera de factura | PK `idfactura_cabecera` |
 | `factura_detalle` | Líneas de la factura | `idfactura_cabecera` → cabecera; `id_producto` → `inventario_producto.id` (columna `nombre` como `producto_nombre`) |
 | `forma_pagos` (**plural**, no `forma_pago`) | Pagos de la factura (0..N) | `id_cabecera` → `factura_cabecera.idfactura_cabecera`; PK `idforma_pagos` |
+| `impuestosdocumento` (sin `id` propia) | IVAs usados por factura (0..N) | `idFacturaCabecera` → cabecera; columnas `porcentajeIVA, subtotalIVA, valorIVA` |
 | `pos_configuracion` | Parámetros POS | `terminal_id` → `pos_terminal.id` |
 | `pos_terminal` | Terminales | `nombre_comercial / razon_social / nombre_maquina` |
 | `parametro` / `parametro_grupo` | Parámetros por terminal | `parametro.grupo_id` → grupo; `terminal_id` → terminal |
@@ -65,7 +66,29 @@ Campos: `subio` (tinyint), `id_integracion` (char), `imprimio` (tinyint),
 - UI: chips solo con montos > 0 + total de la fila + total pagado de la factura.
 - Cabecera: `💳 N pagos` (verde) o `Sin pago` (gris).
 
-## 6. Endpoints (`server.js`)
+## 6. Regla: comparación de integridad entre 2 facturas
+
+- UI: check por tarjeta + botón **Comparar** (se activa con exactamente 2).
+- Compara **todos los campos** de cabecera (`c.*`) salvo `CAB_EXCLUIR`:
+  identidad/documentos (`idfactura_cabecera, id_integracion, secuencia,
+  idCliente, numero_documento, documento, descripcion, autorizacion, token,
+  codigo_unico`), fechas (`fecha_emision/creacion, ultimo_cambio,
+  fecha_vencimiento, ultima_sincronizacion`), ruido sync
+  (`subio, subioTemp, subio_documento, tipo_sincro, msg/cod_error`) y
+  enriquecidos (`terminal_nombre, detalles, pagos, total_items, total_pagos`).
+- Detalle: empareja líneas por `id_producto` (en orden si se repite);
+  excluye `DET_EXCLUIR` (PKs/FKs, `producto_nombre`,
+  `promocion_integracionId`, fechas).
+- Pagos: empareja por código `forma_pago`; excluye `PAGO_EXCLUIR`
+  (PK/FK, `id_integracion`, `token`, `id_transaccion_giftcard`, fechas).
+- Impuestos: empareja por `porcentajeIVA`; excluye `IMP_EXCLUIR`
+  (`idFacturaCabecera`). Compara `subtotalIVA` y `valorIVA` con tolerancia.
+- Montos con tolerancia `0.005`: diferencias de **0.01 se detectan**,
+  ruido ≤0.001 se ignora; `null ≈ ''`; numéricos comparan por valor (`5 ≈ '5.00'`).
+- Lógica pura en `public/js/sections/compare.js` (testeable en Node);
+  render en `facturas.js` + modal `compareModal`.
+
+## 7. Endpoints (`server.js`)
 
 - `GET /api/status` → `{ status, host, port, database, version, serverTime, latencyMs, totalTables }`.
 - `GET /api/configuraciones` y `GET /api/configuraciones/:id` (join `pos_terminal`).
@@ -73,7 +96,7 @@ Campos: `subio` (tinyint), `id_integracion` (char), `imprimio` (tinyint),
   y `POST /api/parametros/guardar-lote` (transacción; `terminal_id` obligatorio).
 - `GET /api/facturas` → `{ success, total, data[] }` con detalle + pagos.
 
-## 7. Decisiones UI aplicadas
+## 8. Decisiones UI aplicadas
 
 - Pill `MySQL Conectado (N ms)`: `white-space: nowrap; flex-shrink: 0` (evita salto de línea).
 - `select` de filtros (Facturas/Parámetro/pos_configuracion): estilo moderno
@@ -81,7 +104,7 @@ Campos: `subio` (tinyint), `id_integracion` (char), `imprimio` (tinyint),
 - Modal genérico JSON (`openJsonModal`) para cabecera/pagos; modal tabla
   (`recordModal`) para columnas de `factura_detalle`.
 
-## 8. Gotchas verificados
+## 9. Gotchas verificados
 
 - `forma_pagos` es **plural**; `factura` sin pagos recientes es normal (últimas 20
   pueden traer `total_pagos: 0`).

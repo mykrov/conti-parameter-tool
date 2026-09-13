@@ -81,6 +81,8 @@ export const dom = {
   btnFacturasExpandAll: document.getElementById('btnFacturasExpandAll'),
   btnFacturasCollapseAll: document.getElementById('btnFacturasCollapseAll'),
   facturasView: document.getElementById('facturasView'),
+  btnFacturasCompare: document.getElementById('btnFacturasCompare'),
+  compareCount: document.getElementById('compareCount'),
 
   // Barra de cambios pendientes
   pendingChangesBar: document.getElementById('pendingChangesBar'),
@@ -103,5 +105,12 @@ export const dom = {
   recordModalSubtitle: document.getElementById('recordModalSubtitle'),
   recordModalBody: document.getElementById('recordModalBody'),
   btnCloseRecordModal: document.getElementById('btnCloseRecordModal'),
-  btnCopyRecordJson: document.getElementById('btnCopyRecordJson')
+  btnCopyRecordJson: document.getElementById('btnCopyRecordJson'),
+
+  // Modal de comparación de integridad entre 2 facturas
+  compareModal: document.getElementById('compareModal'),
+  compareModalTitle: document.getElementById('compareModalTitle'),
+  compareModalSubtitle: document.getElementById('compareModalSubtitle'),
+  compareModalBody: document.getElementById('compareModalBody'),
+  btnCloseCompareModal: document.getElementById('btnCloseCompareModal')
 };

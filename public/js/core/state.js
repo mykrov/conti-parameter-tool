@@ -32,6 +32,7 @@ export const state = {
     searchTerm: '',
     sortMode: 'fecha_desc',
     expanded: new Set(), // Set<idfactura_cabecera> expandidas
-    selectedDetalle: null // detalle abierto en el modal de registro completo
+    selectedDetalle: null, // detalle abierto en el modal de registro completo
+    compare: new Set() // Set<idfactura_cabecera> seleccionadas para comparar (máx 2)
   }
 };

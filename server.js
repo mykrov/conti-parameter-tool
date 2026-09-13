@@ -325,44 +325,12 @@ app.post('/api/parametros/guardar-lote', async (req, res) => {
 // Endpoint: Últimas 20 facturas creadas en factura_cabecera con su detalle relacionado
 app.get('/api/facturas', async (req, res) => {
   try {
-    // 1) Últimas 20 cabeceras ordenadas por fecha de creación (más recientes primero)
+    // 1) Últimas 20 cabeceras ordenadas por fecha de creación (más recientes primero).
+    // Se trae c.* completa para permitir la comparación de integridad campo a campo.
     const [cabeceras] = await pool.query(`
       SELECT
-        c.idfactura_cabecera,
-        c.secuencia,
-        c.terminal_id,
-        COALESCE(t.nombre_comercial, t.razon_social, CONCAT('Terminal ', c.terminal_id)) AS terminal_nombre,
-        c.idCliente,
-        c.id_vendedor,
-        c.id_tipoDocumento,
-        c.numero_documento,
-        c.documento,
-        c.fecha_emision,
-        c.fecha_creacion,
-        c.descuento,
-        c.descuento_factura,
-        c.descuento_cliente,
-        c.tarifa_iva0,
-        c.tarifa_iva,
-        c.total_ice,
-        c.total_iva,
-        c.servicio,
-        c.propina,
-        c.vuelto,
-        c.total,
-        c.forma_pago,
-        c.tipo_pago,
-        c.estado,
-        c.tipo,
-        c.autorizacion,
-        c.electronico,
-        c.enviado_sri,
-        c.descripcion,
-        c.subio,
-        c.id_integracion,
-        c.imprimio,
-        c.cod_error,
-        c.msg_error
+        c.*,
+        COALESCE(t.nombre_comercial, t.razon_social, CONCAT('Terminal ', c.terminal_id)) AS terminal_nombre
       FROM factura_cabecera c
       LEFT JOIN pos_terminal t ON c.terminal_id = t.id
       ORDER BY c.fecha_creacion DESC, c.idfactura_cabecera DESC
@@ -410,15 +378,34 @@ app.get('/api/facturas', async (req, res) => {
       pagosPorFactura.get(pago.id_cabecera).push(pago);
     }
 
+    // 5) Impuestos usados por factura (tabla: impuestosdocumento, FK idFacturaCabecera)
+    const [impuestos] = await pool.query(`
+      SELECT i.*
+      FROM impuestosdocumento i
+      WHERE i.idFacturaCabecera IN (?)
+      ORDER BY i.idFacturaCabecera ASC, i.porcentajeIVA ASC
+    `, [ids]);
+
+    const impuestosPorFactura = new Map();
+    for (const imp of impuestos) {
+      if (!impuestosPorFactura.has(imp.idFacturaCabecera)) {
+        impuestosPorFactura.set(imp.idFacturaCabecera, []);
+      }
+      impuestosPorFactura.get(imp.idFacturaCabecera).push(imp);
+    }
+
     const data = cabeceras.map(cabecera => {
       const items = detallePorFactura.get(cabecera.idfactura_cabecera) || [];
       const pagosFactura = pagosPorFactura.get(cabecera.idfactura_cabecera) || [];
+      const impuestosFactura = impuestosPorFactura.get(cabecera.idfactura_cabecera) || [];
       return {
         ...cabecera,
         total_items: items.length,
         detalles: items,
         total_pagos: pagosFactura.length,
-        pagos: pagosFactura
+        pagos: pagosFactura,
+        total_impuestos: impuestosFactura.length,
+        impuestos: impuestosFactura
       };
     });
 

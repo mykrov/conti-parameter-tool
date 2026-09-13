@@ -6,6 +6,7 @@ import { state } from '../core/state.js';
 import { dom } from '../core/dom.js';
 import { escapeHtml, formatDateTime, formatMoney, formatPercent, formatQty } from '../core/utils.js';
 import { showToast, openJsonModal } from '../core/ui.js';
+import { compararFacturas } from './compare.js';
 
 export function setupEventListenersFacturas() {
   dom.facturasSearchInput.addEventListener('input', (e) => {
@@ -36,6 +37,12 @@ export function setupEventListenersFacturas() {
     applyFacturasExpansion();
   });
 
+  dom.btnFacturasCompare.addEventListener('click', openCompare);
+  dom.btnCloseCompareModal.addEventListener('click', closeCompareModal);
+  dom.compareModal.addEventListener('click', (e) => {
+    if (e.target === dom.compareModal) closeCompareModal();
+  });
+
   // Modal de registro completo (factura_detalle)
   dom.btnCloseRecordModal.addEventListener('click', closeRecordModal);
   dom.recordModal.addEventListener('click', (e) => {
@@ -61,10 +68,12 @@ export async function fetchFacturas() {
 
     state.facturas.data = result.data || [];
     state.facturas.expanded.clear();
+    state.facturas.compare.clear();
     dom.badgeCountFacturas.textContent = state.facturas.data.length;
 
     updateFacturasKpis();
     renderFacturasView();
+    updateCompareButton();
   } catch (err) {
     console.error('Error facturas:', err);
     dom.facturasView.innerHTML = `
@@ -142,6 +151,7 @@ export function renderFacturasView() {
   });
 
   applyFacturasExpansion();
+  updateCompareButton();
 }
 
 // Estado de sincronización a la nube según campos de factura_cabecera:
@@ -214,7 +224,7 @@ function getTipoLabel(tipo) {
 function buildFacturaCard(factura) {
   const id = factura.idfactura_cabecera;
   const card = document.createElement('div');
-  card.className = 'factura-card';
+  card.className = 'factura-card' + (state.facturas.compare.has(id) ? ' is-compare-selected' : '');
   card.id = `factura_card_${id}`;
 
   const estado = String(factura.estado || '').trim();
@@ -229,6 +239,9 @@ function buildFacturaCard(factura) {
 
   card.innerHTML = `
     <div class="factura-card-header" onclick="toggleFacturaDetalle(${id})">
+      <input type="checkbox" class="factura-check" title="Seleccionar para comparar integridad"
+             ${state.facturas.compare.has(id) ? 'checked' : ''}
+             onclick="event.stopPropagation(); toggleFacturaCompare(${id}, this)">
       <div class="factura-doc-block">
         <span class="factura-doc">${escapeHtml(factura.documento || `#${id}`)}</span>
         ${factura.tipo ? `<span class="factura-tipo-badge" title="Tipo '${escapeHtml(factura.tipo)}' • id_tipoDocumento ${TIPO_DOC_IDS[String(factura.tipo).trim().toUpperCase()] ?? factura.id_tipoDocumento ?? '-'}">${escapeHtml(getTipoLabel(factura.tipo))}</span>` : ''}
@@ -569,4 +582,163 @@ export function exportFacturasJson() {
     'factura_cabecera + factura_detalle • pos_contifico @ MySQL 5.7',
     state.facturas.data
   );
+}
+
+// ==========================================
+// Comparación de integridad entre 2 facturas
+// ==========================================
+
+window.toggleFacturaCompare = function(id, checkboxEl) {
+  if (checkboxEl.checked) {
+    if (state.facturas.compare.size >= 2) {
+      checkboxEl.checked = false;
+      showToast('Solo puedes seleccionar 2 facturas para comparar', 'error');
+      return;
+    }
+    state.facturas.compare.add(id);
+  } else {
+    state.facturas.compare.delete(id);
+  }
+  document.getElementById(`factura_card_${id}`)?.classList.toggle('is-compare-selected', checkboxEl.checked);
+  updateCompareButton();
+};
+
+function updateCompareButton() {
+  const n = state.facturas.compare.size;
+  if (!dom.btnFacturasCompare) return;
+  dom.compareCount.textContent = `${n}/2`;
+  dom.btnFacturasCompare.disabled = n !== 2;
+}
+
+function closeCompareModal() {
+  dom.compareModal.style.display = 'none';
+}
+
+function formatCompareVal(v) {
+  if (v === null || v === undefined) return '<span class="record-value-empty">NULL</span>';
+  if (String(v).trim() === '') return '<span class="record-value-empty">(vacío)</span>';
+  return escapeHtml(String(v));
+}
+
+function openCompare() {
+  const ids = [...state.facturas.compare];
+  if (ids.length !== 2) return;
+  const facA = state.facturas.data.find(f => f.idfactura_cabecera === ids[0]);
+  const facB = state.facturas.data.find(f => f.idfactura_cabecera === ids[1]);
+  if (!facA || !facB) {
+    showToast('Una factura seleccionada ya no está en el listado', 'error');
+    return;
+  }
+
+  const resultado = compararFacturas(facA, facB);
+  const tituloA = facA.documento || `#${facA.idfactura_cabecera}`;
+  const tituloB = facB.documento || `#${facB.idfactura_cabecera}`;
+
+  dom.compareModalTitle.textContent = `A: ${tituloA}  vs  B: ${tituloB}`;
+  dom.compareModalSubtitle.textContent =
+    `Cabecera: ${resultado.resumenCab.iguales}/${resultado.resumenCab.total} iguales • ` +
+    `Detalle: ${resultado.resumenDet.lineasA} vs ${resultado.resumenDet.lineasB} • ` +
+    `Pagos: ${resultado.resumenPagos.pagosA} vs ${resultado.resumenPagos.pagosB} • ` +
+    `IVA: ${resultado.resumenImp.impA} vs ${resultado.resumenImp.impB}`;
+
+  const veredicto = resultado.integra
+    ? `<div class="compare-verdict compare-ok">Integridad verificada: sin diferencias</div>`
+    : `<div class="compare-verdict compare-diff">Se detectaron diferencias</div>`;
+
+  dom.compareModalBody.innerHTML = `
+    ${veredicto}
+    <div class="compare-section-title">Cabecera — diferencias (${resultado.resumenCab.diferentes})</div>
+    ${buildCompareCabeceraHtml(resultado)}
+    <div class="compare-section-title">Detalle — A: ${resultado.resumenDet.lineasA} líneas, B: ${resultado.resumenDet.lineasB} líneas, pares con diferencia: ${resultado.resumenDet.paresConDiferencia}</div>
+    ${buildCompareDetalleHtml(resultado)}
+    <div class="compare-section-title">Pagos (forma_pagos) — A: ${resultado.resumenPagos.pagosA}, B: ${resultado.resumenPagos.pagosB}, pares con diferencia: ${resultado.resumenPagos.paresConDiferencia}</div>
+    ${buildCompareParesHtml(resultado.pagosPares, resultado.pagosSoloA, resultado.pagosSoloB, 'pago', 'Sin diferencias en pagos.')}
+    <div class="compare-section-title">Impuestos (impuestosdocumento) — A: ${resultado.resumenImp.impA}, B: ${resultado.resumenImp.impB}, pares con diferencia: ${resultado.resumenImp.paresConDiferencia}</div>
+    ${buildCompareParesHtml(resultado.impuestosPares, resultado.impSoloA, resultado.impSoloB, 'registro de IVA', 'Sin diferencias en impuestos.')}
+  `;
+  dom.compareModal.style.display = 'flex';
+}
+
+function buildCompareCabeceraHtml(resultado) {
+  const difs = resultado.cabecera.filter(c => !c.igual);
+  if (difs.length === 0) {
+    return `<div class="compare-empty-ok">Los ${resultado.resumenCab.total} campos comparados de cabecera son idénticos.</div>`;
+  }
+  const filas = difs.map(d => `
+    <tr class="row-diff">
+      <td class="font-mono">${escapeHtml(d.campo)}</td>
+      <td>${formatCompareVal(d.a)}</td>
+      <td>${formatCompareVal(d.b)}</td>
+      <td class="text-right font-mono compare-delta">${d.diff === null || d.diff === undefined ? '≠' : formatMoney(d.diff)}</td>
+    </tr>
+  `).join('');
+  return `
+    <table class="data-table compare-table">
+      <thead><tr><th>Campo</th><th>Valor A</th><th>Valor B</th><th style="text-align:right;">Δ</th></tr></thead>
+      <tbody>${filas}</tbody>
+    </table>
+    <details class="compare-details">
+      <summary>Ver ${resultado.resumenCab.iguales} campos iguales de cabecera</summary>
+      <table class="data-table compare-table">
+        <thead><tr><th>Campo</th><th>Valor A</th><th>Valor B</th></tr></thead>
+        <tbody>${resultado.cabecera.filter(c => c.igual).map(d => `
+          <tr class="row-ok"><td class="font-mono">${escapeHtml(d.campo)}</td><td>${formatCompareVal(d.a)}</td><td>${formatCompareVal(d.b)}</td></tr>
+        `).join('')}</tbody>
+      </table>
+    </details>
+  `;
+}
+
+function buildCompareDetalleHtml(resultado) {
+  let html = '';
+  if (resultado.soloA.length > 0 || resultado.soloB.length > 0) {
+    html += `<div class="compare-unpaired">Líneas sin pareja — solo en A: ${resultado.soloA.length}, solo en B: ${resultado.soloB.length}</div>`;
+  }
+  const conDif = resultado.detallePares.filter(p => p.campos.some(c => !c.igual));
+  if (conDif.length === 0 && resultado.soloA.length === 0 && resultado.soloB.length === 0) {
+    return html + `<div class="compare-empty-ok">Detalle idéntico en ambas facturas.</div>`;
+  }
+  for (const par of conDif) {
+    const difs = par.campos.filter(c => !c.igual);
+    html += `
+      <div class="compare-pair-title">Producto ID ${escapeHtml(par.idProducto ?? '-')} — ${difs.length} diferencia${difs.length === 1 ? '' : 's'}</div>
+      ${buildCompareDiffTable(difs)}
+    `;
+  }
+  return html;
+}
+
+function buildCompareDiffTable(difs) {
+  return `
+    <table class="data-table compare-table">
+      <thead><tr><th>Campo</th><th>Valor A</th><th>Valor B</th><th style="text-align:right;">Δ</th></tr></thead>
+      <tbody>${difs.map(d => `
+        <tr class="row-diff">
+          <td class="font-mono">${escapeHtml(d.campo)}</td>
+          <td>${formatCompareVal(d.a)}</td>
+          <td>${formatCompareVal(d.b)}</td>
+          <td class="text-right font-mono compare-delta">${d.diff === null || d.diff === undefined ? '≠' : formatMoney(d.diff)}</td>
+        </tr>
+      `).join('')}</tbody>
+    </table>
+  `;
+}
+
+function buildCompareParesHtml(pares, soloA, soloB, etiqueta, emptyMsg) {
+  let html = '';
+  if (soloA.length > 0 || soloB.length > 0) {
+    html += `<div class="compare-unpaired">Sin pareja — solo en A: ${soloA.length}, solo en B: ${soloB.length}</div>`;
+  }
+  const conDif = pares.filter(p => p.campos.some(c => !c.igual));
+  if (conDif.length === 0 && soloA.length === 0 && soloB.length === 0) {
+    return html + `<div class="compare-empty-ok">${escapeHtml(emptyMsg)}</div>`;
+  }
+  for (const par of conDif) {
+    const difs = par.campos.filter(c => !c.igual);
+    html += `
+      <div class="compare-pair-title">${escapeHtml(String(par.clave))} — ${difs.length} diferencia${difs.length === 1 ? '' : 's'}</div>
+      ${buildCompareDiffTable(difs)}
+    `;
+  }
+  return html;
 }
